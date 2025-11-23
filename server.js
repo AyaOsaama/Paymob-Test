@@ -93,8 +93,10 @@ app.post("/paymob/callback", (req, res) => {
     writeJSON(ordersPath, orders);
   }
 
-  res.status(200).json({ status: "payment received" });
+  // بدل ما نعرض "Cannot GET", نعمل redirect
+  res.redirect(`https://books-front-paymob.vercel.app/payment-success?order_id=${orderId}`);
 });
+
 
 // Verify payment
 app.get("/verify/:orderId", async (req, res) => {
