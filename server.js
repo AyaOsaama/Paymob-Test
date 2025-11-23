@@ -106,22 +106,21 @@ app.get("/verify/:orderId", (req, res) => {
 
 //   res.json({ status: "payment saved" });
 // });
-app.get("/paymob/callback", (req, res) => {
-  console.log("Callback GET data:", req.query);
+const paidBooks = [];
 
-  // ممكن تحوّلي البيانات زي ما كنتِ بتعملي في POST
+app.get("/paymob/callback", (req, res) => {
   const orderId = req.query.order;
-  const bookId = parseInt(req.query.bookId || 0); // لو هتحطي bookId
+  const bookId = parseInt(req.query.bookId || 0);
   const accessKey = Math.random().toString(36).substring(2);
 
-  const orders = readJSON(ordersPath);
-  if (!orders.find(o => o.orderId === orderId)) {
-    orders.push({ orderId, bookId, paid: true, accessKey });
-    writeJSON(ordersPath, orders);
+  if (!paidBooks.find(o => o.orderId === orderId)) {
+    paidBooks.push({ orderId, bookId, paid: true, accessKey });
   }
 
+  console.log("Paid books:", paidBooks);
   res.send("Payment received!");
 });
+
 
 // -----------------------------------
 // Start server
