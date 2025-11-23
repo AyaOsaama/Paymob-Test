@@ -83,10 +83,9 @@ app.get("/books/:id/pdf", async (req, res) => {
 // Verify order after redirect
 app.get("/verify/:orderId", async (req, res) => {
   const { orderId } = req.params;
-  console.log("=== VERIFY START ===", orderId);
+
   try {
     const token = await getToken();
-
     const response = await axios.get(
       `https://accept.paymob.com/api/ecommerce/orders/${orderId}`,
       { headers: { Authorization: `Bearer ${token}` } }
@@ -94,17 +93,17 @@ app.get("/verify/:orderId", async (req, res) => {
 
     const order = response.data;
 
-    if (order?.success && order?.id) {
-      // استخدم orderId كـ accessKey
-      return res.json({ status: "paid", accessKey: orderId });
+    if (order?.success) {
+      return res.json({ status: "paid", accessKey: orderId }); // orderId نفسه ك accessKey
     } else {
       return res.json({ status: "not paid" });
     }
   } catch (err) {
-    console.error("VERIFY ERROR:", err.response?.data || err.message);
+    console.error(err.response?.data || err.message);
     return res.status(500).json({ status: "error", message: "Verification failed" });
   }
 });
+
 
 // Create payment and get iframe
 // Create payment and get iframe
@@ -133,21 +132,14 @@ app.post("/pay", async (req, res) => {
 // Callback from Paymob after payment success
 app.post("/paymob/callback", (req, res) => {
   const data = req.body;
-  console.log(data);
+  console.log("Callback Data:", data);
 
-  if (data.obj?.success !== true) return res.json({ status: "payment failed" });
+  if (!data.obj?.success) return res.json({ status: "payment failed" });
 
-  const orderId = data.obj.order.id;
-  const bookId = extractBookIdFromItems(data.obj.order.items);
-  const accessKey = Math.random().toString(36).substring(2);
-
-  const ordersPath = path.join(__dirname, "data/orders.json");
-  const orders = readJSON(ordersPath);
-  orders.push({ orderId, bookId, paid: true, accessKey });
-  writeJSON(ordersPath, orders);
-
+  // ما فيش حاجة للملفات، مجرد تسجيل نجاح
   res.json({ status: "payment saved" });
 });
+
 
 app.get("/paymob/callback", (req, res) => {
   console.log("Callback GET query:", req.query);
