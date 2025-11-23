@@ -147,7 +147,7 @@ app.post("/paymob/callback", (req, res) => {
 app.get("/paymob/callback", (req, res) => {
   console.log("Callback GET query:", req.query);
   // ممكن تحولي المستخدم مباشرة لصفحة الدفع الناجح
-  res.redirect(`http://localhost:5174/payment-success?order_id=${req.query.order}`);
+  res.redirect(`https://books-front-paymob.vercel.app//payment-success?order_id=${req.query.order}`);
 });
 
 // ==============================
