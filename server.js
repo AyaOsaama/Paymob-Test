@@ -9,7 +9,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const ordersPath = path.join(__dirname, "/orders.json");
+// -----------------------------------
+// Orders JSON
+// -----------------------------------
+const ordersPath = path.join(__dirname, "orders.json");
 if (!fs.existsSync(ordersPath)) fs.writeFileSync(ordersPath, "[]");
 
 // Helper functions
@@ -23,79 +26,37 @@ function extractBookIdFromItems(items) {
   return parseInt(items[0].description.replace("Book ID: ", ""));
 }
 
-// -------------------------
+// -----------------------------------
 // Books routes
-// -------------------------
+// -----------------------------------
 app.get("/books", (req, res) => {
   const booksPath = path.join(__dirname, "books/data.json");
   const books = readJSON(booksPath);
   res.json(books);
 });
 
-// app.get("/books/:id/pdf", (req, res) => {
-//   const bookId = parseInt(req.params.id);
-//   const key = req.query.accessKey;
+// فتح PDF بعد الدفع والتحقق من accessKey
+app.get("/books/:id/pdf", (req, res) => {
+  const bookId = parseInt(req.params.id);
+  const key = req.query.accessKey;
 
-//   const orders = readJSON(ordersPath);
-//   const paid = orders.find(o => o.bookId === bookId && o.accessKey === key);
-//   if (!paid) return res.status(403).json({ message: "You must pay first" });
+  const orders = readJSON(ordersPath);
+  const paid = orders.find(o => o.bookId === bookId && o.accessKey === key);
+  if (!paid) return res.status(403).json({ message: "يجب دفع ثمن الكتاب أولاً" });
 
-//   const booksPath = path.join(__dirname, "books/data.json");
-//   const books = readJSON(booksPath);
-//   const book = books.find(b => b.id === bookId);
+  const booksPath = path.join(__dirname, "books/data.json");
+  const books = readJSON(booksPath);
+  const book = books.find(b => b.id === bookId);
 
-//   const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
-//   res.sendFile(pdfPath);
-// });
+  if (!book) return res.status(404).json({ message: "الكتاب غير موجود" });
 
-// -------------------------
-
-// app.post("/pay-test", (req, res) => {
-//   const { amount, bookId } = req.body;
-
-//   const orderId = Math.floor(Math.random() * 1000000000); // رقم طلب وهمي
-//   const accessKey = Math.random().toString(36).substring(2);
-
-//   const orders = readJSON(ordersPath);
-//   orders.push({ orderId, bookId, paid: true, accessKey });
-//   writeJSON(ordersPath, orders);
-
-//   res.json({ status: "paid", orderId, bookId, accessKey });
-// });
-const paidBooks = []; // حافظ على الطلبات المدفوعة مؤقتًا
-
-app.post("/pay-test", (req, res) => {
-  const { bookId } = req.body;
-  const accessKey = Math.random().toString(36).substring(2);
-  const orderId = Math.floor(Math.random() * 1000000);
-
-  paidBooks.push({ orderId, bookId, accessKey });
-
-  res.json({ status: "paid", orderId, bookId, accessKey });
+  const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
+  res.sendFile(pdfPath);
 });
 
-app.get("/verify/:orderId", (req, res) => {
-  const { orderId } = req.params;
-  const order = paidBooks.find(o => o.orderId == orderId);
-  if (!order) return res.json({ status: "not paid" });
-  res.json({ status: "paid", bookId: order.bookId, accessKey: order.accessKey });
-});
-
-
-app.post("/pay-test", (req, res) => {
-  const { bookId } = req.body;
-
-  // accessKey ثابت للتجربة
-  const accessKey = Math.random().toString(36).substring(2);
-
-  // بدلاً من orders.json، نحتفظ بالبيانات مؤقتًا في memory
-  const paidBook = { bookId, accessKey };
-
-  res.json({ status: "paid", bookId, accessKey });
-});
-
-// -------------------------
-// Pay route (باستخدام Paymob)
+// -----------------------------------
+// Pay route (Paymob)
+// -----------------------------------
 app.post("/pay", async (req, res) => {
   try {
     const { amount, bookId } = req.body;
@@ -114,8 +75,9 @@ app.post("/pay", async (req, res) => {
   }
 });
 
-// -------------------------
+// -----------------------------------
 // Verify route
+// -----------------------------------
 app.get("/verify/:orderId", (req, res) => {
   const { orderId } = req.params;
   const orders = readJSON(ordersPath);
@@ -125,8 +87,9 @@ app.get("/verify/:orderId", (req, res) => {
   return res.json({ status: "paid", bookId: order.bookId, accessKey: order.accessKey });
 });
 
-// -------------------------
+// -----------------------------------
 // Paymob callback
+// -----------------------------------
 app.post("/paymob/callback", (req, res) => {
   const data = req.body;
   if (!data.obj?.success) return res.json({ status: "payment failed" });
@@ -144,6 +107,8 @@ app.post("/paymob/callback", (req, res) => {
   res.json({ status: "payment saved" });
 });
 
-
+// -----------------------------------
 // Start server
-app.listen(5000, () => console.log("Server running on http://localhost:5000"));
+// -----------------------------------
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
