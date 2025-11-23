@@ -94,14 +94,16 @@ app.post("/paymob/callback", (req, res) => {
   const accessKey = Math.random().toString(36).substring(2);
 
   const ordersPath = path.join(__dirname, "data/orders.json");
-  const orders = readJSON(ordersPath);
+  const orders = fs.existsSync(ordersPath) ? JSON.parse(fs.readFileSync(ordersPath, "utf-8")) : [];
+
   if (!orders.find(o => o.orderId === orderId)) {
     orders.push({ orderId, bookId, paid: true, accessKey });
-    writeJSON(ordersPath, orders);
+    fs.writeFileSync(ordersPath, JSON.stringify(orders, null, 2));
   }
 
   res.json({ status: "payment saved" });
 });
+
 
 // GET callback (redirect after payment)
 app.get("/paymob/callback", (req, res) => {
