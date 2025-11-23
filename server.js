@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -8,18 +9,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const ordersPath = path.join(__dirname, "/orders.json");
+const ordersPath = path.join(__dirname, "orders.json");
 if (!fs.existsSync(ordersPath)) fs.writeFileSync(ordersPath, "[]");
 
+// -------------------------
 // Helper functions
+// -------------------------
 function readJSON(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf-8"));
 }
 function writeJSON(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-function extractBookIdFromItems(items) {
-  return parseInt(items[0].description.replace("Book ID: ", ""));
 }
 
 // -------------------------
@@ -48,8 +48,24 @@ app.get("/books/:id/pdf", (req, res) => {
 });
 
 // -------------------------
-// Pay route
+// Pay-test route (عرض نجاح مباشر)
 // -------------------------
+app.post("/pay-test", (req, res) => {
+  const { bookId } = req.body;
+
+  const orderId = Math.floor(Math.random() * 1000000000);
+  const accessKey = Math.random().toString(36).substring(2);
+
+  const orders = readJSON(ordersPath);
+  orders.push({ orderId, bookId, paid: true, accessKey });
+  writeJSON(ordersPath, orders);
+
+  // إرجاع orderId و accessKey عشان صفحة success تستخدمها
+  res.json({ status: "paid", orderId, bookId, accessKey });
+});
+
+// -------------------------
+// Pay route (باستخدام Paymob)
 app.post("/pay", async (req, res) => {
   try {
     const { amount, bookId } = req.body;
@@ -59,7 +75,8 @@ app.post("/pay", async (req, res) => {
     const orderId = await createOrder(token, amountCents, bookId);
     const paymentToken = await createPaymentKey(token, orderId, amountCents);
 
-    const iframeUrl = `https://accept.paymobsolutions.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
+    // هنا خلي return_url يروح على صفحة success مستقلة
+    const iframeUrl = `https://accept.paymobsolutions.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentToken}&return_url=https://paymob-test-ten.vercel.app/payment-success?order_id=${orderId}`;
 
     res.json({ url: iframeUrl, orderId });
   } catch (err) {
@@ -69,7 +86,8 @@ app.post("/pay", async (req, res) => {
 });
 
 // -------------------------
-// Verify route (frontend calls بعد الدفع)
+// Verify route
+// -------------------------
 app.get("/verify/:orderId", (req, res) => {
   const { orderId } = req.params;
   const orders = readJSON(ordersPath);
@@ -80,24 +98,6 @@ app.get("/verify/:orderId", (req, res) => {
 });
 
 // -------------------------
-// Paymob callback
-// -------------------------
-app.post("/paymob/callback", (req, res) => {
-  const data = req.body;
-  if (!data.obj?.success) return res.json({ status: "payment failed" });
-
-  const orderId = data.obj.order.id;
-  const bookId = extractBookIdFromItems(data.obj.order.items);
-  const accessKey = Math.random().toString(36).substring(2);
-
-  const orders = readJSON(ordersPath);
-  if (!orders.find(o => o.orderId === orderId)) {
-    orders.push({ orderId, bookId, paid: true, accessKey });
-    writeJSON(ordersPath, orders);
-  }
-
-  res.json({ status: "payment saved" });
-});
-
 // Start server
+// -------------------------
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
