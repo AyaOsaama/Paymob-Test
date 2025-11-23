@@ -94,7 +94,7 @@ app.post("/paymob/callback", (req, res) => {
   }
 
   // بدل ما نعرض "Cannot GET", نعمل redirect
-  res.redirect(`https://books-front-paymob.vercel.app/payment-success?order_id=${orderId}`);
+  res.redirect(`https://books-front-paymob.vercel.app/payment-success?success=true&order_id=${orderId}`);
 });
 
 
