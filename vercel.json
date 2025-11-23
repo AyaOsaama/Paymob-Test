@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "servet.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    { "src": "/pay", "dest": "/servet.js" },
+    { "src": "/paymob/callback", "dest": "/servet.js" },
+    { "src": "/verify/(.*)", "dest": "/servet.js" },
+    { "src": "/books/(.*)", "dest": "/servet.js" }
+  ]
+}
