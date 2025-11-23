@@ -118,7 +118,7 @@ app.get("/paymob/callback", (req, res) => {
 app.get("/verify/:orderId", (req, res) => {
   try {
     const { orderId } = req.params;
-    const ordersPath = path.join(__dirname, "data/orders.json");
+    const ordersPath = path.join(__dirname, "/orders.json");
 
     if (!fs.existsSync(ordersPath)) {
       return res.json({ status: "not paid" });
