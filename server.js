@@ -3,24 +3,22 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
-const { getToken, createOrder, createPaymentKey } = require("./paymob");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const ordersPath = path.join(__dirname, "/orders.json");
+const ordersPath = path.join(__dirname, "orders.json");
 if (!fs.existsSync(ordersPath)) fs.writeFileSync(ordersPath, "[]");
 
+// -------------------------
 // Helper functions
+// -------------------------
 function readJSON(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf-8"));
 }
 function writeJSON(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-function extractBookIdFromItems(items) {
-  return parseInt(items[0].description.replace("Book ID: ", ""));
 }
 
 // -------------------------
@@ -49,54 +47,33 @@ app.get("/books/:id/pdf", (req, res) => {
 });
 
 // -------------------------
-
-// app.post("/pay-test", (req, res) => {
-//   const { amount, bookId } = req.body;
-
-//   const orderId = Math.floor(Math.random() * 1000000000); // رقم طلب وهمي
-//   const accessKey = Math.random().toString(36).substring(2);
-
-//   const orders = readJSON(ordersPath);
-//   orders.push({ orderId, bookId, paid: true, accessKey });
-//   writeJSON(ordersPath, orders);
-
-//   res.json({ status: "paid", orderId, bookId, accessKey });
-// });
-
+// Pay-test route (عرض نجاح مباشر)
+// -------------------------
 app.post("/pay-test", (req, res) => {
   const { bookId } = req.body;
 
-  // accessKey ثابت للتجربة
+  // إنشاء رقم طلب و accessKey عشوائي
+  const orderId = Math.floor(Math.random() * 1000000000);
   const accessKey = Math.random().toString(36).substring(2);
 
-  // بدلاً من orders.json، نحتفظ بالبيانات مؤقتًا في memory
-  const paidBook = { bookId, accessKey };
+  // حفظ الطلب في orders.json
+  const orders = readJSON(ordersPath);
+  orders.push({ orderId, bookId, paid: true, accessKey });
+  writeJSON(ordersPath, orders);
 
-  res.json({ status: "paid", bookId, accessKey });
-});
-
-// -------------------------
-// Pay route (باستخدام Paymob)
-app.post("/pay", async (req, res) => {
-  try {
-    const { amount, bookId } = req.body;
-    const amountCents = amount * 100;
-
-    const token = await getToken();
-    const orderId = await createOrder(token, amountCents, bookId);
-    const paymentToken = await createPaymentKey(token, orderId, amountCents);
-
-    const iframeUrl = `https://accept.paymobsolutions.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
-
-    res.json({ url: iframeUrl, orderId });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "حدث خطأ في الدفع" });
-  }
+  // إرجاع نتيجة الدفع مباشرة
+  res.json({
+    status: "paid",
+    orderId,
+    bookId,
+    accessKey,
+    message: "Payment Success!"
+  });
 });
 
 // -------------------------
 // Verify route
+// -------------------------
 app.get("/verify/:orderId", (req, res) => {
   const { orderId } = req.params;
   const orders = readJSON(ordersPath);
@@ -107,62 +84,6 @@ app.get("/verify/:orderId", (req, res) => {
 });
 
 // -------------------------
-// Paymob callback
-// app.post("/paymob/callback", (req, res) => {
-//   const data = req.body;
-//   if (!data.obj?.success) return res.json({ status: "payment failed" });
-
-//   const orderId = data.obj.order.id;
-//   const bookId = extractBookIdFromItems(data.obj.order.items);
-//   const accessKey = Math.random().toString(36).substring(2);
-
-//   const orders = readJSON(ordersPath);
-//   if (!orders.find(o => o.orderId === orderId)) {
-//     orders.push({ orderId, bookId, paid: true, accessKey });
-//     writeJSON(ordersPath, orders);
-//   }
-
-//   res.json({ status: "payment saved" });
-// });
-
-// POST callback (لتسجيل الدفع تلقائي)
-app.post("/paymob/callback", (req, res) => {
-  const data = req.body;
-
-  if (!data.obj?.success) return res.json({ status: "payment failed" });
-
-  const orderId = data.obj.order.id;
-  const bookId = extractBookIdFromItems(data.obj.order.items);
-  const accessKey = Math.random().toString(36).substring(2);
-
-  const orders = readJSON(ordersPath);
-  if (!orders.find(o => o.orderId === orderId)) {
-    orders.push({ orderId, bookId, paid: true, accessKey });
-    writeJSON(ordersPath, orders);
-  }
-
-  res.json({ status: "payment saved" });
-});
-
-// GET route للعرض بعد الدفع
-app.get("/paymob/callback", (req, res) => {
-  const orderId = req.query.order;
-  const orders = readJSON(ordersPath);
-  const order = orders.find(o => o.orderId == orderId);
-
-  if (!order) {
-    return res.send("<h1>Payment not found or failed!</h1>");
-  }
-
-  res.send(`
-    <h1>Payment Success!</h1>
-    <p>تم الدفع بنجاح للكتاب رقم: ${order.bookId}</p>
-    <a href="/books/${order.bookId}/pdf?accessKey=${order.accessKey}" target="_blank">
-      افتح الكتاب الآن
-    </a>
-  `);
-});
-
-
 // Start server
+// -------------------------
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
