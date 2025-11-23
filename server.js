@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -14,6 +15,7 @@ app.use(express.json());
 const ordersPath = path.join(__dirname, "orders.json");
 if (!fs.existsSync(ordersPath)) fs.writeFileSync(ordersPath, "[]");
 
+// Helper functions
 function readJSON(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf-8"));
 }
@@ -33,6 +35,7 @@ app.get("/books", (req, res) => {
   res.json(books);
 });
 
+// فتح PDF بعد الدفع والتحقق من accessKey
 app.get("/books/:id/pdf", (req, res) => {
   const bookId = parseInt(req.params.id);
   const key = req.query.accessKey;
@@ -44,6 +47,7 @@ app.get("/books/:id/pdf", (req, res) => {
   const booksPath = path.join(__dirname, "books/data.json");
   const books = readJSON(booksPath);
   const book = books.find(b => b.id === bookId);
+
   if (!book) return res.status(404).json({ message: "الكتاب غير موجود" });
 
   const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
@@ -51,7 +55,7 @@ app.get("/books/:id/pdf", (req, res) => {
 });
 
 // -----------------------------------
-// Pay route
+// Pay route (Paymob)
 // -----------------------------------
 app.post("/pay", async (req, res) => {
   try {
@@ -63,6 +67,7 @@ app.post("/pay", async (req, res) => {
     const paymentToken = await createPaymentKey(token, orderId, amountCents);
 
     const iframeUrl = `https://accept.paymobsolutions.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
+
     res.json({ url: iframeUrl, orderId });
   } catch (err) {
     console.error(err);
@@ -77,16 +82,17 @@ app.get("/verify/:orderId", (req, res) => {
   const { orderId } = req.params;
   const orders = readJSON(ordersPath);
   const order = orders.find(o => o.orderId == orderId);
+
   if (!order) return res.json({ status: "not paid" });
-  res.json({ status: "paid", bookId: order.bookId, accessKey: order.accessKey });
+  return res.json({ status: "paid", bookId: order.bookId, accessKey: order.accessKey });
 });
 
 // -----------------------------------
-// Paymob callback (POST فقط)
+// Paymob callback
+// -----------------------------------
 app.post("/paymob/callback", (req, res) => {
   const data = req.body;
-
-  if (!data.obj?.success) return res.status(400).json({ status: "payment failed" });
+  if (!data.obj?.success) return res.json({ status: "payment failed" });
 
   const orderId = data.obj.order.id;
   const bookId = extractBookIdFromItems(data.obj.order.items);
@@ -98,10 +104,11 @@ app.post("/paymob/callback", (req, res) => {
     writeJSON(ordersPath, orders);
   }
 
-  res.json({ status: "payment saved" }); 
+  res.json({ status: "payment saved" });
 });
 
 // -----------------------------------
 // Start server
+// -----------------------------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
