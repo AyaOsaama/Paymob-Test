@@ -110,18 +110,18 @@ app.post("/paymob/callback", (req, res) => {
 });
 const paidBooks = [];
 
-app.get("/paymob/callback", (req, res) => {
-  const orderId = req.query.order;
-  const bookId = parseInt(req.query.bookId || 0);
-  const accessKey = Math.random().toString(36).substring(2);
+// app.get("/paymob/callback", (req, res) => {
+//   const orderId = req.query.order;
+//   const bookId = parseInt(req.query.bookId || 0);
+//   const accessKey = Math.random().toString(36).substring(2);
 
-  if (!paidBooks.find(o => o.orderId === orderId)) {
-    paidBooks.push({ orderId, bookId, paid: true, accessKey });
-  }
+//   if (!paidBooks.find(o => o.orderId === orderId)) {
+//     paidBooks.push({ orderId, bookId, paid: true, accessKey });
+//   }
 
-  console.log("Paid books:", paidBooks);
-  res.send("Payment received!");
-});
+//   console.log("Paid books:", paidBooks);
+//   res.send("Payment received!");
+// });
 
 
 // -----------------------------------
