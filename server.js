@@ -17,16 +17,10 @@ app.post("/pay", async (req, res) => {
     const { amount, bookId } = req.body;
     const amountCents = amount * 100;
 
-    // 1) Get auth token
     const token = await getToken();
-
-    // 2) Create order
     const orderId = await createOrder(token, amountCents, bookId);
-
-    // 3) Create payment key
     const paymentToken = await createPaymentKey(token, orderId, amountCents);
 
-    // رابط iframe فقط
     const iframeUrl = `https://accept.paymobsolutions.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
 
     res.json({ url: iframeUrl, orderId });
@@ -35,6 +29,7 @@ app.post("/pay", async (req, res) => {
     res.status(500).json({ error: "حدث خطأ في الدفع" });
   }
 });
+
 
 // -------------------------
 // Start server
