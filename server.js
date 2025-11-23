@@ -105,13 +105,36 @@ app.get("/verify/:orderId", (req, res) => {
 // Paymob callback
 // -------------------------
 
-app.post("/paymob/callback", (req, res) => {
-  const data = req.body;
+// app.post("/paymob/callback", (req, res) => {
+//   const data = req.body;
 
-  if (!data.obj?.success) return res.json({ status: "payment failed" });
+//   if (!data.obj?.success) return res.json({ status: "payment failed" });
 
-  const orderId = data.obj.order.id;
-  const bookId = extractBookIdFromItems(data.obj.order.items);
+//   const orderId = data.obj.order.id;
+//   const bookId = extractBookIdFromItems(data.obj.order.items);
+//   const accessKey = Math.random().toString(36).substring(2);
+
+//   const orders = readJSON(ordersPath);
+//   if (!orders.find(o => o.orderId === orderId)) {
+//     orders.push({ orderId, bookId, paid: true, accessKey });
+//     writeJSON(ordersPath, orders);
+//   }
+
+//   res.json({ status: "payment saved" });
+// });
+app.all("/paymob/callback", (req, res) => {
+  const data = req.body || req.query; // خليها تدعم POST و GET
+
+  // تحقق من النجاح
+  const success = data.obj?.success || data.success === "true"; 
+
+  if (!success) return res.json({ status: "payment failed" });
+
+  const orderId = data.obj?.order?.id || data.order;
+  const bookId = data.obj?.order?.items
+    ? parseInt(data.obj.order.items[0].description.replace("Book ID: ", ""))
+    : data.bookId;
+
   const accessKey = Math.random().toString(36).substring(2);
 
   const orders = readJSON(ordersPath);
