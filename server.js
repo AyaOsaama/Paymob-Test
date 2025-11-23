@@ -76,6 +76,7 @@ app.post("/pay", async (req, res) => {
 });
 
 // Paymob callback POST
+// POST callback (webhook)
 app.post("/paymob/callback", (req, res) => {
   const data = req.body;
   console.log("Paymob POST callback:", data);
@@ -93,7 +94,15 @@ app.post("/paymob/callback", (req, res) => {
     writeJSON(ordersPath, orders);
   }
 
-  // بدل ما نعرض "Cannot GET", نعمل redirect
+  res.json({ status: "payment saved" });
+});
+
+// GET callback (redirect after payment)
+app.get("/paymob/callback", (req, res) => {
+  const orderId = req.query.order; // Paymob بيبعت order ID في query
+  if (!orderId) return res.send("Order ID not found");
+
+  // نقدر هنا نعمل redirect مباشر للصفحة الجاهزة على frontend
   res.redirect(`https://books-front-paymob.vercel.app/payment-success?success=true&order_id=${orderId}`);
 });
 
