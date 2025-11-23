@@ -47,30 +47,33 @@ app.get("/books/:id", (req, res) => {
 });
 
 // Get PDF after payment (protected)
-app.get("/books/:id/pdf", (req, res) => {
+app.get("/books/:id/pdf", async (req, res) => {
   const bookId = parseInt(req.params.id);
-  const key = req.query.accessKey;
+  const orderId = req.query.accessKey;
 
-  // تحقق من الدفع باستخدام orderId نفسه
-  const verifyUrl = `https://accept.paymob.com/api/ecommerce/orders/${key}`;
+  try {
+    const token = await getToken();
+    const response = await axios.get(
+      `https://accept.paymob.com/api/ecommerce/orders/${orderId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-  axios.get(verifyUrl, { headers: { Authorization: `Bearer ${process.env.PAYMOB_API_KEY}` } })
-    .then(response => {
-      if (!response.data.success) return res.status(403).json({ message: "You must pay first" });
+    if (!response.data.success) return res.status(403).json({ message: "You must pay first" });
 
-      const booksPath = path.join(__dirname, "books/data.json");
-      const books = readJSON(booksPath);
-      const book = books.find((b) => b.id == bookId);
-      if (!book) return res.status(404).json({ message: "Book not found" });
+    const booksPath = path.join(__dirname, "books/data.json");
+    const books = readJSON(booksPath);
+    const book = books.find((b) => b.id === bookId);
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
-      const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
-      res.sendFile(pdfPath);
-    })
-    .catch(err => {
-      console.error(err.response?.data || err.message);
-      res.status(500).json({ message: "Error verifying payment" });
-    });
+    const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
+    res.sendFile(pdfPath);
+
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({ message: "Error verifying payment" });
+  }
 });
+
 
 
 // ==============================
