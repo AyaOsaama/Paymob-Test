@@ -1,4 +1,5 @@
 const express = require("express");
+const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
 const axios = require("axios");
@@ -9,9 +10,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Helper Functions
+// Helper functions
 function readJSON(filePath) {
-  return JSON.parse(require("fs").readFileSync(filePath, "utf-8"));
+  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+}
+
+function writeJSON(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
 function extractBookIdFromItems(items) {
@@ -19,81 +24,89 @@ function extractBookIdFromItems(items) {
   return parseInt(desc.replace("Book ID: ", ""));
 }
 
+// Books routes
+app.get("/books", (req, res) => {
+  const booksPath = path.join(__dirname, "books/data.json");
+  res.json(readJSON(booksPath));
+});
+
+app.get("/books/:id", (req, res) => {
+  const booksPath = path.join(__dirname, "books/data.json");
+  const books = readJSON(booksPath);
+  const book = books.find(b => b.id == req.params.id);
+  if (!book) return res.status(404).json({ message: "Book not found" });
+  res.json(book);
+});
+
 // Get PDF after payment (protected)
-app.get("/books/:id/pdf", async (req, res) => {
+app.get("/books/:id/pdf", (req, res) => {
   const bookId = parseInt(req.params.id);
-  const orderId = req.query.accessKey; // استخدم orderId مباشرة
+  const key = req.query.accessKey;
 
-  try {
-    const token = await getToken();
-    const response = await axios.get(
-      `https://accept.paymob.com/api/ecommerce/orders/${orderId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+  const ordersPath = path.join(__dirname, "data/orders.json");
+  const orders = readJSON(ordersPath);
+  const paid = orders.find(o => o.bookId === bookId && o.accessKey === key);
+  if (!paid) return res.status(403).json({ message: "You must pay first" });
 
-    const order = response.data;
+  const booksPath = path.join(__dirname, "books/data.json");
+  const book = readJSON(booksPath).find(b => b.id === bookId);
+  if (!book) return res.status(404).json({ message: "Book not found" });
 
-    if (!order.success) return res.status(403).json({ message: "يجب إتمام الدفع أولاً" });
-
-    const booksPath = path.join(__dirname, "books/data.json");
-    const books = readJSON(booksPath);
-    const book = books.find((b) => b.id === bookId);
-    if (!book) return res.status(404).json({ message: "الكتاب غير موجود" });
-
-    const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
-    res.sendFile(pdfPath);
-
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ message: "خطأ في التحقق من الدفع" });
-  }
+  const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
+  res.sendFile(pdfPath);
 });
 
-// Verify order
-app.get("/verify/:orderId", async (req, res) => {
-  const { orderId } = req.params;
-
-  try {
-    const token = await getToken();
-    const response = await axios.get(
-      `https://accept.paymob.com/api/ecommerce/orders/${orderId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    const order = response.data;
-
-    if (order.success) {
-      return res.json({ status: "paid", accessKey: orderId });
-    } else {
-      return res.json({ status: "not paid" });
-    }
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    return res.status(500).json({ status: "error", message: "فشل التحقق من الدفع" });
-  }
-});
-
-// Create payment
+// Paymob - Create payment
 app.post("/pay", async (req, res) => {
   try {
     const { amount, bookId } = req.body;
+    if (!amount || !bookId) return res.status(400).json({ error: "amount and bookId required" });
+
+    const amountCents = amount * 100;
     const token = await getToken();
-    const orderId = await createOrder(token, amount * 100, bookId);
-    const paymentToken = await createPaymentKey(token, orderId, amount * 100);
+    const orderId = await createOrder(token, amountCents, bookId);
+    const paymentToken = await createPaymentKey(token, orderId, amountCents);
 
     const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
     res.json({ url: iframeUrl, orderId });
   } catch (err) {
     console.error(err.response?.data || err.message);
-    res.status(500).json({ error: "خطأ في إنشاء الدفع" });
+    res.status(500).json({ error: "Something went wrong" });
   }
 });
 
-// Callback (optional)
+// Paymob callback POST
 app.post("/paymob/callback", (req, res) => {
-  console.log("Paymob callback:", req.body);
-  res.json({ status: "received" });
+  const data = req.body;
+  console.log("Paymob POST callback:", data);
+
+  if (!data?.success) return res.json({ status: "payment failed" });
+
+  const orderId = data?.order?.id || data?.order;
+  const bookId = extractBookIdFromItems(data.items || data.order.items);
+  const accessKey = Math.random().toString(36).substring(2);
+
+  const ordersPath = path.join(__dirname, "data/orders.json");
+  const orders = readJSON(ordersPath);
+  if (!orders.find(o => o.orderId === orderId)) {
+    orders.push({ orderId, bookId, paid: true, accessKey });
+    writeJSON(ordersPath, orders);
+  }
+
+  res.status(200).json({ status: "payment received" });
 });
 
+// Verify payment
+app.get("/verify/:orderId", async (req, res) => {
+  const { orderId } = req.params;
+  const ordersPath = path.join(__dirname, "data/orders.json");
+  const orders = readJSON(ordersPath);
+  const order = orders.find(o => o.orderId == orderId);
+
+  if (!order) return res.json({ status: "not paid" });
+  res.json({ status: "paid", accessKey: order.accessKey });
+});
+
+// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
