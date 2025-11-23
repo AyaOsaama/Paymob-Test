@@ -90,22 +90,24 @@ app.get("/verify/:orderId", (req, res) => {
 // -----------------------------------
 // Paymob callback
 // -----------------------------------
-// app.post("/paymob/callback", (req, res) => {
-//   const data = req.body;
-//   if (!data.obj?.success) return res.json({ status: "payment failed" });
+app.post("/paymob/callback", (req, res) => {
+  const data = req.body;
 
-//   const orderId = data.obj.order.id;
-//   const bookId = extractBookIdFromItems(data.obj.order.items);
-//   const accessKey = Math.random().toString(36).substring(2);
+  if (!data.obj?.success) return res.status(400).json({ status: "payment failed" });
 
-//   const orders = readJSON(ordersPath);
-//   if (!orders.find(o => o.orderId === orderId)) {
-//     orders.push({ orderId, bookId, paid: true, accessKey });
-//     writeJSON(ordersPath, orders);
-//   }
+  const orderId = data.obj.order.id;
+  const bookId = extractBookIdFromItems(data.obj.order.items);
+  const accessKey = Math.random().toString(36).substring(2);
 
-//   res.json({ status: "payment saved" });
-// });
+  const orders = readJSON(ordersPath);
+  if (!orders.find(o => o.orderId === orderId)) {
+    orders.push({ orderId, bookId, paid: true, accessKey });
+    writeJSON(ordersPath, orders);
+  }
+
+  // Paymob مش محتاج يشوف response HTML، بس ممكن نرجع OK
+  res.json({ status: "payment saved" });
+});
 const paidBooks = [];
 
 app.get("/paymob/callback", (req, res) => {
