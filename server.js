@@ -125,9 +125,28 @@ app.get("/verify/:orderId", (req, res) => {
 //   res.json({ status: "payment saved" });
 // });
 
-// GET route للـ callback من Paymob للعرض في المتصفح
+// POST callback (لتسجيل الدفع تلقائي)
+app.post("/paymob/callback", (req, res) => {
+  const data = req.body;
+
+  if (!data.obj?.success) return res.json({ status: "payment failed" });
+
+  const orderId = data.obj.order.id;
+  const bookId = extractBookIdFromItems(data.obj.order.items);
+  const accessKey = Math.random().toString(36).substring(2);
+
+  const orders = readJSON(ordersPath);
+  if (!orders.find(o => o.orderId === orderId)) {
+    orders.push({ orderId, bookId, paid: true, accessKey });
+    writeJSON(ordersPath, orders);
+  }
+
+  res.json({ status: "payment saved" });
+});
+
+// GET route للعرض بعد الدفع
 app.get("/paymob/callback", (req, res) => {
-  const orderId = req.query.order; // الرقم اللي بيجي من Paymob
+  const orderId = req.query.order;
   const orders = readJSON(ordersPath);
   const order = orders.find(o => o.orderId == orderId);
 
@@ -143,6 +162,7 @@ app.get("/paymob/callback", (req, res) => {
     </a>
   `);
 });
+
 
 // Start server
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
