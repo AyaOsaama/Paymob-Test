@@ -90,12 +90,28 @@ app.get("/verify/:orderId", (req, res) => {
 // -----------------------------------
 // Paymob callback
 // -----------------------------------
-app.post("/paymob/callback", (req, res) => {
-  const data = req.body;
-  if (!data.obj?.success) return res.json({ status: "payment failed" });
+// app.post("/paymob/callback", (req, res) => {
+//   const data = req.body;
+//   if (!data.obj?.success) return res.json({ status: "payment failed" });
 
-  const orderId = data.obj.order.id;
-  const bookId = extractBookIdFromItems(data.obj.order.items);
+//   const orderId = data.obj.order.id;
+//   const bookId = extractBookIdFromItems(data.obj.order.items);
+//   const accessKey = Math.random().toString(36).substring(2);
+
+//   const orders = readJSON(ordersPath);
+//   if (!orders.find(o => o.orderId === orderId)) {
+//     orders.push({ orderId, bookId, paid: true, accessKey });
+//     writeJSON(ordersPath, orders);
+//   }
+
+//   res.json({ status: "payment saved" });
+// });
+app.get("/paymob/callback", (req, res) => {
+  console.log("Callback GET data:", req.query);
+
+  // ممكن تحوّلي البيانات زي ما كنتِ بتعملي في POST
+  const orderId = req.query.order;
+  const bookId = parseInt(req.query.bookId || 0); // لو هتحطي bookId
   const accessKey = Math.random().toString(36).substring(2);
 
   const orders = readJSON(ordersPath);
@@ -104,7 +120,7 @@ app.post("/paymob/callback", (req, res) => {
     writeJSON(ordersPath, orders);
   }
 
-  res.json({ status: "payment saved" });
+  res.send("Payment received!");
 });
 
 // -----------------------------------
