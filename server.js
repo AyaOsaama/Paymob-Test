@@ -114,15 +114,28 @@ app.get("/paymob/callback", (req, res) => {
 
 
 // Verify payment
-app.get("/verify/:orderId", async (req, res) => {
-  const { orderId } = req.params;
-  const ordersPath = path.join(__dirname, "data/orders.json");
-  const orders = readJSON(ordersPath);
-  const order = orders.find(o => o.orderId == orderId);
+// Verify payment
+app.get("/verify/:orderId", (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const ordersPath = path.join(__dirname, "data/orders.json");
 
-  if (!order) return res.json({ status: "not paid" });
-  res.json({ status: "paid", accessKey: order.accessKey });
+    if (!fs.existsSync(ordersPath)) {
+      return res.json({ status: "not paid" });
+    }
+
+    const orders = JSON.parse(fs.readFileSync(ordersPath, "utf-8"));
+    const order = orders.find(o => o.orderId == orderId);
+
+    if (!order) return res.json({ status: "not paid" });
+
+    res.json({ status: "paid", accessKey: order.accessKey, bookId: order.bookId });
+  } catch (err) {
+    console.error("Verify endpoint error:", err.message);
+    res.status(500).json({ status: "error", message: "حدث خطأ في التحقق من الدفع" });
+  }
 });
+
 
 // Start server
 const PORT = process.env.PORT || 5000;
