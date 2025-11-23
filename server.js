@@ -7,7 +7,13 @@ require("dotenv").config();
 const { getToken, createOrder, createPaymentKey } = require("./paymob");
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://books-front-paymob.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
+  })
+);
 app.use(express.json());
 
 // Helper functions
