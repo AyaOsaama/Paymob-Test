@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "title": "JavaScript Basics",
+    "description": "Learn the fundamentals of JavaScript from zero.",
+    "price": 5000, 
+    "currency": "EGP",
+    "pdf": "js-basics.pdf",
+    "cover": "https://www.tutorialspoint.com/javascript/images/javascript_pdfcover.jpg"
+  },
+  {
+    "id": 2,
+    "title": "Node.js for Beginners",
+    "description": "Start backend development using Node.js.",
+    "price": 7000,
+    "currency": "EGP",
+    "pdf": "nodejs-beginners.pdf",
+    "cover": "https://www.tutorialspoint.com/nodejs/images/nodejs_pdfcover.jpg"
+  },
+  {
+    "id": 3,
+    "title": "React Full Guide",
+    "description": "Master React hooks, components, and real apps.",
+    "price": 8500,
+    "currency": "EGP",
+    "pdf": "react-guide.pdf",
+    "cover": "https://www.tutorialspoint.com/reactjs/images/reactjs_pdfcover.jpg"
+  }
+]

@@ -5,25 +5,30 @@ require("dotenv").config();
 async function getToken() {
   const res = await axios.post(
     "https://accept.paymob.com/api/auth/tokens",
-    {
-      api_key: process.env.PAYMOB_API_KEY,
-    }
+    { api_key: process.env.PAYMOB_API_KEY }
   );
   return res.data.token;
 }
 
 // 2) Create Order
-async function createOrder(token, amountCents) {
+async function createOrder(token, amountCents, bookId) {
   const res = await axios.post(
     "https://accept.paymob.com/api/ecommerce/orders",
     {
       auth_token: token,
       amount_cents: amountCents,
       currency: "EGP",
-      items: [],
+      items: [
+        {
+          name: "Book Purchase",
+          amount_cents: amountCents,
+          quantity: 1,
+          description: `Book ID: ${bookId}`,
+        },
+      ],
     }
   );
-  return res.data.id; 
+  return res.data.id;
 }
 
 // 3) Create Payment Key
@@ -35,7 +40,7 @@ async function createPaymentKey(token, orderId, amountCents) {
       amount_cents: amountCents,
       expiration: 3600,
       order_id: orderId,
-       currency: "EGP", 
+      currency: "EGP",
       billing_data: {
         apartment: "NA",
         email: "test@test.com",
@@ -52,10 +57,11 @@ async function createPaymentKey(token, orderId, amountCents) {
         state: "NA",
       },
       integration_id: process.env.PAYMOB_INTEGRATION_ID,
+return_url: `http://localhost:5174/payment-success?order_id=${orderId}`
     }
   );
 
-  return res.data.token; 
+  return res.data.token;
 }
 
 module.exports = { getToken, createOrder, createPaymentKey };
