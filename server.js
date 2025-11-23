@@ -32,21 +32,21 @@ app.get("/books", (req, res) => {
   res.json(books);
 });
 
-// app.get("/books/:id/pdf", (req, res) => {
-//   const bookId = parseInt(req.params.id);
-//   const key = req.query.accessKey;
+app.get("/books/:id/pdf", (req, res) => {
+  const bookId = parseInt(req.params.id);
+  const key = req.query.accessKey;
 
-//   const orders = readJSON(ordersPath);
-//   const paid = orders.find(o => o.bookId === bookId && o.accessKey === key);
-//   if (!paid) return res.status(403).json({ message: "You must pay first" });
+  const orders = readJSON(ordersPath);
+  const paid = orders.find(o => o.bookId === bookId && o.accessKey === key);
+  if (!paid) return res.status(403).json({ message: "You must pay first" });
 
-//   const booksPath = path.join(__dirname, "books/data.json");
-//   const books = readJSON(booksPath);
-//   const book = books.find(b => b.id === bookId);
+  const booksPath = path.join(__dirname, "books/data.json");
+  const books = readJSON(booksPath);
+  const book = books.find(b => b.id === bookId);
 
-//   const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
-//   res.sendFile(pdfPath);
-// });
+  const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
+  res.sendFile(pdfPath);
+});
 
 // -------------------------
 
@@ -62,25 +62,6 @@ app.get("/books", (req, res) => {
 
 //   res.json({ status: "paid", orderId, bookId, accessKey });
 // });
-const paidBooks = []; // حافظ على الطلبات المدفوعة مؤقتًا
-
-app.post("/pay-test", (req, res) => {
-  const { bookId } = req.body;
-  const accessKey = Math.random().toString(36).substring(2);
-  const orderId = Math.floor(Math.random() * 1000000);
-
-  paidBooks.push({ orderId, bookId, accessKey });
-
-  res.json({ status: "paid", orderId, bookId, accessKey });
-});
-
-app.get("/verify/:orderId", (req, res) => {
-  const { orderId } = req.params;
-  const order = paidBooks.find(o => o.orderId == orderId);
-  if (!order) return res.json({ status: "not paid" });
-  res.json({ status: "paid", bookId: order.bookId, accessKey: order.accessKey });
-});
-
 
 app.post("/pay-test", (req, res) => {
   const { bookId } = req.body;
@@ -127,23 +108,41 @@ app.get("/verify/:orderId", (req, res) => {
 
 // -------------------------
 // Paymob callback
-app.post("/paymob/callback", (req, res) => {
-  const data = req.body;
-  if (!data.obj?.success) return res.json({ status: "payment failed" });
+// app.post("/paymob/callback", (req, res) => {
+//   const data = req.body;
+//   if (!data.obj?.success) return res.json({ status: "payment failed" });
 
-  const orderId = data.obj.order.id;
-  const bookId = extractBookIdFromItems(data.obj.order.items);
-  const accessKey = Math.random().toString(36).substring(2);
+//   const orderId = data.obj.order.id;
+//   const bookId = extractBookIdFromItems(data.obj.order.items);
+//   const accessKey = Math.random().toString(36).substring(2);
 
+//   const orders = readJSON(ordersPath);
+//   if (!orders.find(o => o.orderId === orderId)) {
+//     orders.push({ orderId, bookId, paid: true, accessKey });
+//     writeJSON(ordersPath, orders);
+//   }
+
+//   res.json({ status: "payment saved" });
+// });
+
+// GET route للـ callback من Paymob للعرض في المتصفح
+app.get("/paymob/callback", (req, res) => {
+  const orderId = req.query.order; // الرقم اللي بيجي من Paymob
   const orders = readJSON(ordersPath);
-  if (!orders.find(o => o.orderId === orderId)) {
-    orders.push({ orderId, bookId, paid: true, accessKey });
-    writeJSON(ordersPath, orders);
+  const order = orders.find(o => o.orderId == orderId);
+
+  if (!order) {
+    return res.send("<h1>Payment not found or failed!</h1>");
   }
 
-  res.json({ status: "payment saved" });
+  res.send(`
+    <h1>Payment Success!</h1>
+    <p>تم الدفع بنجاح للكتاب رقم: ${order.bookId}</p>
+    <a href="/books/${order.bookId}/pdf?accessKey=${order.accessKey}" target="_blank">
+      افتح الكتاب الآن
+    </a>
+  `);
 });
-
 
 // Start server
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
