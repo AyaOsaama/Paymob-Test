@@ -92,9 +92,10 @@ app.post("/pay", async (req, res) => {
 // ------------------ Paymob callback ------------------
 app.post("/paymob/callback", (req, res) => {
   let data;
- console.log("🔥 Headers:", req.headers);
+
+  console.log("🔥 Headers:", req.headers);
   console.log("🔥 Body raw:", req.body);
-  res.status(200).send("Received");
+
   // حاول تقرأ البيانات كـ JSON أو text
   try {
     if (typeof req.body === "string") {
@@ -109,12 +110,12 @@ app.post("/paymob/callback", (req, res) => {
 
   console.log("✅ Paymob POST callback received:", data);
 
-  if (!data?.success) {
+  if (!data?.obj?.success) {
     return res.json({ status: "payment failed" });
   }
 
-  const orderId = data?.order?.id || data?.order;
-  const bookId = extractBookIdFromItems(data.items || data.order?.items);
+  const orderId = data?.obj?.order?.id;
+  const bookId = extractBookIdFromItems(data.obj.order?.items);
   const accessKey = Math.random().toString(36).substring(2, 10);
 
   // قراءة وتحديث orders.json
@@ -129,6 +130,7 @@ app.post("/paymob/callback", (req, res) => {
 
   res.json({ status: "payment saved" });
 });
+
 
 // GET callback (redirect after payment)
 app.get("/paymob/callback", (req, res) => {
