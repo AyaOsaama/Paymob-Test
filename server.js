@@ -57,6 +57,7 @@ app.get("/books/:id", (req, res) => {
 app.get("/books/:id/pdf", (req, res) => {
   const bookId = parseInt(req.params.id);
   const key = req.query.accessKey;
+  const mode = req.query.mode; // "open" أو "download"
 
   const orders = readJSON(ordersPath);
   const paid = orders.find((o) => o.bookId === bookId && o.accessKey === key);
@@ -66,8 +67,23 @@ app.get("/books/:id/pdf", (req, res) => {
   if (!book) return res.status(404).json({ message: "Book not found" });
 
   const pdfPath = path.join(__dirname, "books/pdfs", book.pdf);
-  res.sendFile(pdfPath);
+
+  res.setHeader("Content-Type", "application/pdf");
+  if (mode === "download") {
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${book.pdf || `${book.title}.pdf`}"`
+    );
+  }
+
+  res.sendFile(pdfPath, (err) => {
+    if (err) {
+      console.error("Error sending PDF:", err);
+      res.status(500).send("حدث خطأ أثناء تحميل الكتاب.");
+    }
+  });
 });
+
 
 // ------------------ Paymob payment ------------------
 app.post("/pay", async (req, res) => {
