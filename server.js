@@ -38,8 +38,8 @@ function extractBookIdFromItems(items) {
 }
 
 // Paths
-const ordersPath = path.join(__dirname, "orders.json");
-const booksPath = path.join(__dirname, "books/data.json");
+// const ordersPath = path.join(__dirname, "orders.json");
+// const booksPath = path.join(__dirname, "books/data.json");
 
 // ------------------ Books routes ------------------
 app.get("/books", (req, res) => {
@@ -90,19 +90,22 @@ app.post("/pay", async (req, res) => {
 });
 
 // ------------------ Paymob callback ------------------
+// Paths
+const ordersPath = path.join("/tmp", "orders.json"); // <-- تعديل هنا
+const booksPath = path.join(__dirname, "books/data.json");
+
+// تأكد من وجود الملف في /tmp عند تشغيل السيرفر
+if (!fs.existsSync(ordersPath)) fs.writeFileSync(ordersPath, "[]");
+
+// ------------------ Paymob callback ------------------
 app.post("/paymob/callback", (req, res) => {
   let data;
 
   console.log("🔥 Headers:", req.headers);
   console.log("🔥 Body raw:", req.body);
 
-  // حاول تقرأ البيانات كـ JSON أو text
   try {
-    if (typeof req.body === "string") {
-      data = JSON.parse(req.body);
-    } else {
-      data = req.body;
-    }
+    data = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
   } catch (err) {
     console.error("Failed to parse callback body:", req.body);
     return res.status(400).send("Invalid callback data");
@@ -110,26 +113,25 @@ app.post("/paymob/callback", (req, res) => {
 
   console.log("✅ Paymob POST callback received:", data);
 
-  if (!data?.obj?.success) {
-    return res.json({ status: "payment failed" });
-  }
+  if (!data?.obj?.success) return res.json({ status: "payment failed" });
 
-  const orderId = data?.obj?.order?.id;
+  const orderId = data.obj.order?.id;
   const bookId = extractBookIdFromItems(data.obj.order?.items);
   const accessKey = Math.random().toString(36).substring(2, 10);
 
-  // قراءة وتحديث orders.json
+  // قراءة وتحديث orders.json في /tmp
   const orders = readJSON(ordersPath);
   if (!orders.find((o) => o.orderId === orderId)) {
     orders.push({ orderId, bookId, paid: true, accessKey });
     writeJSON(ordersPath, orders);
-    console.log("✅ Order saved to orders.json:", { orderId, bookId });
+    console.log("✅ Order saved to /tmp/orders.json:", { orderId, bookId });
   } else {
     console.log("⚠️ Order already exists:", orderId);
   }
 
   res.json({ status: "payment saved" });
 });
+
 
 
 // GET callback (redirect after payment)
